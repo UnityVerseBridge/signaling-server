@@ -1,0 +1,44 @@
+# Git 버전 관리 폴더
+# Docker 이미지에는 Git 기록이 필요 없습니다.
+.git
+.gitignore
+.gitattributes
+
+# Node.js 의존성 폴더
+# Docker 이미지 빌드 시 컨테이너 내부에서 'npm install'을 실행하여 설치하므로,
+# 로컬의 node_modules를 복사할 필요가 없으며, 복사하면 문제를 일으킬 수 있습니다.
+node_modules
+npm-debug.log*
+yarn-error.log
+pnpm-debug.log
+
+# Docker 관련 파일
+# Dockerfile 자체나 .dockerignore 파일은 이미지 빌드 컨텍스트에 포함될 필요가 없습니다.
+Dockerfile
+.dockerignore
+
+# 문서 및 라이선스 파일
+# 서버 실행에 직접 필요하지 않은 파일입니다.
+README.md
+LICENSE
+
+# 운영체제별 자동 생성 파일
+# macOS
+.DS_Store
+.AppleDouble
+._*
+# Windows
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+# IDE 설정 폴더 (필요에 따라 주석 해제 또는 추가)
+# .idea/
+# .vscode/
+
+# 개발 환경 설정 파일 (민감 정보 포함 가능성)
+# .env
+
+# 로그 파일 등
+*.log
+logs/
