@@ -1,27 +1,17 @@
 {
-  "name": "signaling-server",
+  "name": "unityverse-signaling-server",
   "version": "1.0.0",
-  "description": "WebRTC 연결 중계를 위한 서버 애플리케이션의 기본 개발 환경을 구축한다. (Node.js 예시)",
-  "main": "index.js",
+  "description": "WebRTC signaling server for UnityVerse Bridge",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "start:auth": "cross-env REQUIRE_AUTH=true AUTH_KEY=development-key node server.js",
+    "start:prod": "cross-env REQUIRE_AUTH=true node server.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/UnityVerseBridge/signaling-server.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/UnityVerseBridge/signaling-server/issues"
-  },
-  "homepage": "https://github.com/UnityVerseBridge/signaling-server#readme",
   "dependencies": {
-    "uuid": "^11.1.0",
-    "ws": "^8.18.1"
+    "ws": "^8.13.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "cross-env": "^7.0.3"
   }
 }

@@ -3,6 +3,25 @@ const http = require('http');
 const url = require('url');
 const tokenManager = require('./auth/tokenManager');
 
+// Load environment variables from .env file if it exists
+try {
+    const fs = require('fs');
+    const path = require('path');
+    const envPath = path.join(__dirname, '.env');
+    if (fs.existsSync(envPath)) {
+        const envContent = fs.readFileSync(envPath, 'utf8');
+        envContent.split('\n').forEach(line => {
+            const [key, value] = line.split('=');
+            if (key && value) {
+                process.env[key.trim()] = value.trim();
+            }
+        });
+        console.log('Loaded .env file');
+    }
+} catch (error) {
+    // Ignore if .env doesn't exist
+}
+
 const PORT = process.env.PORT || 8080;
 const REQUIRE_AUTH = process.env.REQUIRE_AUTH === 'true';
 
