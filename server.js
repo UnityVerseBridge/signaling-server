@@ -101,7 +101,12 @@ class Room {
     
     addHost(ws) {
         if (this.host) {
-            throw new Error('Room already has a host');
+            // Check if existing host connection is still alive
+            if (this.host.readyState === WebSocket.OPEN) {
+                throw new Error('Room already has a host');
+            }
+            // Previous host connection is closed, allow replacement
+            console.log('Replacing stale host connection');
         }
         this.host = ws;
     }
@@ -303,6 +308,25 @@ function handleJoinRoom(ws, connectionId, data) {
     }
     
     const peerId = data.peerId || connectionId;
+    
+    // Check if this peerId already exists and clean up stale connection
+    for (const [clientWs, clientInfo] of clients.entries()) {
+        if (clientInfo.peerId === peerId && clientWs !== ws) {
+            console.log(`Cleaning up existing connection for peerId ${peerId}`);
+            if (clientWs.readyState === WebSocket.OPEN) {
+                clientWs.close(1000, 'Replaced by new connection');
+            }
+            clients.delete(clientWs);
+            
+            // Remove from room if needed
+            if (clientInfo.roomId) {
+                const room = rooms.get(clientInfo.roomId);
+                if (room) {
+                    room.remove(clientWs);
+                }
+            }
+        }
+    }
     
     // Get or create room
     let room = rooms.get(data.roomId);
