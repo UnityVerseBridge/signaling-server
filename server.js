@@ -72,6 +72,7 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocket.Server({ server });
 
+// Global maps for managing connections
 const clients = new Map();
 const rooms = new Map();
 
@@ -99,11 +100,19 @@ class Room {
         return this.host === ws;
     }
     
-    addHost(ws) {
+    addHost(ws, peerId) {
         if (this.host) {
             // Check if existing host connection is still alive
             if (this.host.readyState === WebSocket.OPEN) {
-                throw new Error('Room already has a host');
+                // Check if it's the same peerId trying to reconnect
+                const existingHostInfo = clients.get(this.host);
+                if (existingHostInfo && existingHostInfo.peerId === peerId) {
+                    console.log(`Same host ${peerId} reconnecting, replacing connection`);
+                    // Close the old connection
+                    this.host.close(1000, 'Replaced by new connection');
+                } else {
+                    throw new Error('Room already has a host');
+                }
             }
             // Previous host connection is closed, allow replacement
             console.log('Replacing stale host connection');
@@ -323,6 +332,7 @@ function handleJoinRoom(ws, connectionId, data) {
                 const room = rooms.get(clientInfo.roomId);
                 if (room) {
                     room.remove(clientWs);
+                    console.log(`Removed stale connection from room ${clientInfo.roomId}`);
                 }
             }
         }
@@ -340,7 +350,7 @@ function handleJoinRoom(ws, connectionId, data) {
     
     // Add to room based on role
     if (data.role === 'Host' || data.role === 'host') {
-        room.addHost(ws);
+        room.addHost(ws, peerId);
     } else {
         room.addClient(ws);
     }
