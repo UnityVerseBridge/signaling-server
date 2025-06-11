@@ -64,6 +64,34 @@ const server = http.createServer((req, res) => {
                 res.end(JSON.stringify({ error: 'Invalid request' }));
             }
         });
+    } else if (pathname === '/rooms' && req.method === 'GET') {
+        // Return list of active rooms with Quest hosts
+        const activeRooms = [];
+        rooms.forEach((room, roomId) => {
+            if (room.host && room.host.readyState === WebSocket.OPEN) {
+                const hostInfo = clients.get(room.host);
+                activeRooms.push({
+                    roomId: roomId,
+                    hostType: hostInfo ? hostInfo.clientType : 'unknown',
+                    createdAt: room.createdAt,
+                    guestCount: room.clients.size
+                });
+            }
+        });
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+            rooms: activeRooms,
+            timestamp: new Date().toISOString()
+        }));
+    } else if (pathname === '/health' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+            status: 'ok', 
+            connectedClients: clients.size,
+            activeRooms: rooms.size,
+            uptime: process.uptime()
+        }));
     } else {
         res.writeHead(404);
         res.end('Not found');
