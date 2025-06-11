@@ -2,6 +2,11 @@ const WebSocket = require('ws');
 const http = require('http');
 const url = require('url');
 const tokenManager = require('./auth/tokenManager');
+const { 
+    validateMessage, 
+    sanitizeInput, 
+    ConnectionRateLimiter 
+} = require('./middleware/security');
 
 // Load environment variables from .env file if it exists
 try {
@@ -26,6 +31,11 @@ const PORT = process.env.PORT || 8080;
 const HOST = process.env.HOST || '0.0.0.0';
 const REQUIRE_AUTH = process.env.REQUIRE_AUTH === 'true';
 const MAX_CLIENTS_PER_ROOM = parseInt(process.env.MAX_CLIENTS_PER_ROOM) || 10;
+const MAX_MESSAGE_SIZE = parseInt(process.env.MAX_MESSAGE_SIZE) || 10 * 1024; // 10KB
+const MAX_CONNECTIONS_PER_IP = parseInt(process.env.MAX_CONNECTIONS_PER_IP) || 10;
+
+// Initialize rate limiter
+const connectionLimiter = new ConnectionRateLimiter(MAX_CONNECTIONS_PER_IP);
 
 // Create HTTP server for authentication endpoint
 const server = http.createServer((req, res) => {
@@ -176,16 +186,12 @@ function handleError(context, error) {
     }
 }
 
-// Validate message format
-function validateMessage(data) {
-    if (!data || typeof data !== 'object') {
-        throw new Error('Invalid message format');
+// Enhanced message validation with security checks
+function validateMessageSecure(data) {
+    const validation = validateMessage(data);
+    if (!validation.isValid) {
+        throw new Error(validation.errors.join(', '));
     }
-    
-    if (!data.type || typeof data.type !== 'string') {
-        throw new Error('Message type is required');
-    }
-    
     return true;
 }
 
@@ -202,6 +208,14 @@ function sendError(ws, error, context) {
 
 wss.on('connection', (ws, req) => {
     const connectionId = Date.now() + '_' + Math.random();
+    const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    
+    // Rate limit check
+    if (!connectionLimiter.canConnect(clientIp)) {
+        ws.close(1008, 'Too many connections from this IP');
+        return;
+    }
+    
     const query = url.parse(req.url, true).query;
     
     // Check authentication if required
@@ -230,10 +244,21 @@ wss.on('connection', (ws, req) => {
     ws.on('pong', () => { ws.isAlive = true; });
     
     ws.on('message', (message) => {
+        // Check message size
+        if (message.length > MAX_MESSAGE_SIZE) {
+            sendError(ws, new Error('Message too large'), 'message_size');
+            return;
+        }
+        
         let data;
         try {
             data = JSON.parse(message);
-            validateMessage(data);
+            validateMessageSecure(data);
+            
+            // Sanitize string inputs
+            if (data.roomId) data.roomId = sanitizeInput(data.roomId);
+            if (data.peerId) data.peerId = sanitizeInput(data.peerId);
+            if (data.role) data.role = sanitizeInput(data.role);
         } catch (error) {
             handleError('Parsing message', error);
             sendError(ws, error, 'message_parse');
@@ -529,5 +554,7 @@ server.listen(PORT, HOST, () => {
     console.log(`Authentication endpoint: http://${HOST}:${PORT}/auth`);
     console.log(`Authentication required: ${REQUIRE_AUTH}`);
     console.log(`Max clients per room: ${MAX_CLIENTS_PER_ROOM}`);
-    console.log('Features: 1:N connections, room-based messaging, role management, heartbeat, error handling');
+    console.log(`Max message size: ${MAX_MESSAGE_SIZE} bytes`);
+    console.log(`Max connections per IP: ${MAX_CONNECTIONS_PER_IP}`);
+    console.log('Features: 1:N connections, room-based messaging, role management, heartbeat, error handling, rate limiting');
 });
