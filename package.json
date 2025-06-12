@@ -9,6 +9,8 @@
     "start:prod": "cross-env REQUIRE_AUTH=true node server.js"
   },
   "dependencies": {
+    "dotenv": "^16.0.3",
+    "express-rate-limit": "^7.5.0",
     "ws": "^8.13.0"
   },
   "devDependencies": {

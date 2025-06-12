@@ -1,346 +1,63 @@
-# UnityVerseBridge Signaling Server
+# UnityVerse Signaling Server
 
-Unity WebRTC 애플리케이션을 위한 WebSocket 기반 시그널링 서버입니다. Quest VR과 모바일 앱 간의 P2P 연결을 중재합니다.
+WebRTC signaling server for UnityVerse - connects Quest VR and mobile devices.
 
-## 🎯 개요
+## Quick Start
 
-이 서버는 WebRTC 연결 설정에 필요한 시그널링 메시지(SDP, ICE candidates)를 중계하는 역할을 합니다. 실제 미디어 스트림은 P2P로 직접 전송됩니다.
-
-**주요 기능:**
-- 1:N 연결 지원 (1개 호스트, N개 클라이언트)
-- 룸 기반 피어 매칭
-- WebSocket 실시간 메시지 중계
-- 타겟팅된 메시지 전송 지원
-- 간단한 토큰 기반 인증 (선택사항)
-- 하트비트를 통한 연결 상태 관리
-- CORS 지원
-
-## 🛠️ 기술 스택
-
-- Node.js
-- WebSocket (ws 라이브러리)
-- 환경 변수 기반 설정
-
-## 📋 요구사항
-
-- Node.js 16.x 이상
-- npm 또는 yarn
-
-## 🚀 설치 및 실행
-
-### 1. 프로젝트 클론
 ```bash
-git clone https://github.com/UnityVerseBridge/signaling-server.git
-cd signaling-server
-```
-
-### 2. 의존성 설치
-```bash
+# Install dependencies
 npm install
-```
 
-### 3. 환경 설정
-```bash
-# .env 파일 생성
+# Copy environment config
 cp .env.example .env
 
-# .env 파일을 편집하여 설정
-```
-
-### 4. 서버 실행
-
-**개발 모드:**
-```bash
+# Start server (no auth - development)
 npm start
-```
 
-**인증 모드:**
-```bash
+# Start with authentication
 npm run start:auth
 ```
 
-**프로덕션 모드:**
-```bash
-npm run start:prod
-```
+## Configuration
 
-## ⚙️ 환경 설정
+Edit `.env` file:
 
-`.env` 파일 예시:
 ```env
-# 서버 포트 (기본값: 8080)
-PORT=8080
-
-# 서버 호스트 (기본값: 0.0.0.0)
-HOST=0.0.0.0
-
-# 인증 모드 활성화 (true/false)
-REQUIRE_AUTH=false
-
-# 인증 키 (인증 모드 사용 시)
-AUTH_KEY=your-secret-key
-
-# 토큰 만료 시간 (밀리초, 기본값: 24시간)
-TOKEN_EXPIRY=86400000
-
-# 방당 최대 클라이언트 수 (기본값: 10)
-MAX_CLIENTS_PER_ROOM=10
-
-# 로그 레벨 (선택사항)
-LOG_LEVEL=info
+PORT=8080                    # Server port
+REQUIRE_AUTH=true           # Enable authentication
+AUTH_KEY=your-secret-key    # Authentication key
+MAX_CLIENTS_PER_ROOM=10     # Max clients per room
 ```
 
-## 📡 프로토콜
+## Endpoints
 
-### 클라이언트 → 서버
+- `ws://localhost:8080` - WebSocket connection
+- `http://localhost:8080/auth` - Authentication endpoint
+- `http://localhost:8080/health` - Health check
+- `http://localhost:8080/rooms` - List active rooms
 
-**방 참가 (권장):**
-```json
-{
-  "type": "join-room",
-  "roomId": "room-name",
-  "role": "Host" | "Client",
-  "peerId": "unique-peer-id" (선택사항),
-  "maxConnections": 5 (선택사항, 호스트만)
-}
-```
+## Unity Client Setup
 
-**등록 (하위 호환성):**
-```json
-{
-  "type": "register",
-  "peerId": "unique-peer-id",
-  "clientType": "Quest" | "Mobile",
-  "roomId": "room-name"
-}
-```
+1. **Quest App**: Set `requireAuthentication: true` in ConnectionConfig
+2. **Mobile App**: Set `requireAuthentication: true` in ConnectionConfig
+3. Both apps should use the same `authKey` as configured in server
 
-**시그널링 메시지:**
-```json
-{
-  "type": "offer" | "answer" | "ice-candidate",
-  "data": { /* WebRTC 데이터 */ },
-  "targetPeerId": "peer-id" (선택사항, 특정 피어에게만 전송)
-}
-```
-
-### 서버 → 클라이언트
-
-**방 참가 확인:**
-```json
-{
-  "type": "joined-room",
-  "roomId": "room-name",
-  "peerId": "your-peer-id",
-  "role": "Host" | "Client",
-  "isHost": true | false
-}
-```
-
-**피어 알림:**
-```json
-{
-  "type": "peer-joined" | "peer-left",
-  "peerId": "other-peer-id",
-  "role": "Host" | "Client"
-}
-```
-
-**클라이언트 준비 알림 (호스트에게만):**
-```json
-{
-  "type": "client-ready",
-  "peerId": "client-peer-id"
-}
-```
-
-**호스트 연결 끊김 (클라이언트에게):**
-```json
-{
-  "type": "host-disconnected"
-}
-```
-
-**시그널링 메시지 (sourcePeerId 추가됨):**
-```json
-{
-  "type": "offer" | "answer" | "ice-candidate",
-  "data": { /* WebRTC 데이터 */ },
-  "sourcePeerId": "sender-peer-id"
-}
-```
-
-**오류:**
-```json
-{
-  "type": "error",
-  "error": "에러 메시지",
-  "context": "error_context"
-}
-```
-
-## 🔐 인증
-
-### 토큰 기반 인증 (현재)
-- 간단한 토큰 생성 및 검증
-- 메모리 기반 저장 (서버 재시작 시 초기화)
-- 24시간 만료 시간
-
-### 인증 엔드포인트
-```
-POST /auth
-Content-Type: application/json
-
-{
-  "clientId": "client-unique-id",
-  "clientType": "Quest" | "Mobile",
-  "authKey": "your-auth-key"
-}
-
-Response:
-{
-  "token": "generated-token"
-}
-```
-
-### WebSocket 연결 시 인증
-```
-ws://server:port?token=your-token
-```
-
-### 프로덕션 권장사항
-- JWT(JSON Web Token) 구현
-- Redis 등을 사용한 세션 관리
-- HTTPS/WSS 사용
-- Rate limiting 적용
-
-## 🏗️ 아키텍처
-
-```
-시그널링 서버
-├── WebSocket 서버
-│   ├── 연결 관리
-│   ├── 메시지 라우팅
-│   ├── 타겟팅된 메시지 전송
-│   └── 하트비트 체크
-├── 룸 관리 (1:N 지원)
-│   ├── 호스트/클라이언트 역할 관리
-│   ├── 최대 연결 수 제한
-│   ├── 피어 그룹핑
-│   └── 자동 정리
-├── 인증 (선택사항)
-│   ├── 토큰 생성
-│   └── 검증
-└── CORS 지원
-    └── HTTP OPTIONS 처리
-```
-
-## 📊 모니터링
-
-서버는 다음 정보를 콘솔에 로깅합니다:
-
-- 클라이언트 연결/해제
-- 룸 생성/삭제
-- 메시지 타입 및 라우팅
-- 오류 상황
-
-## 🐛 문제 해결
-
-### 연결이 안 되는 경우
-
-1. 포트가 방화벽에서 열려있는지 확인
-2. 클라이언트의 서버 URL이 올바른지 확인
-3. 네트워크 연결 상태 확인
-
-### 메시지가 전달되지 않는 경우
-
-1. 두 클라이언트가 같은 룸에 있는지 확인
-2. 클라이언트가 올바르게 등록되었는지 확인
-3. 서버 로그에서 오류 확인
-
-### 성능 문제
-
-1. 동시 연결 수 확인
-2. 메시지 크기 및 빈도 확인
-3. 서버 리소스 모니터링
-
-## 🚀 배포
-
-### 로컬 테스트
+## Production Deployment
 
 ```bash
-node server.js
+# Set production environment variables
+export REQUIRE_AUTH=true
+export AUTH_KEY=your-production-key
+export PORT=443
+
+# Run with PM2
+pm2 start server.js --name unityverse-signaling
 ```
 
-### 프로덕션 배포 (PM2 사용)
+## Security Features
 
-```bash
-# PM2 설치
-npm install -g pm2
-
-# 서버 시작
-pm2 start server.js --name "signaling-server"
-
-# 로그 확인
-pm2 logs signaling-server
-
-# 서버 재시작
-pm2 restart signaling-server
-```
-
-### Docker 배포
-
-```dockerfile
-FROM node:16-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-EXPOSE 8080
-CMD ["node", "server.js"]
-```
-
-## 🔧 확장성
-
-### 수평적 확장
-
-- Redis를 사용한 세션 공유
-- 로드 밸런서를 통한 부하 분산
-- Sticky session 설정 필요
-
-### 수직적 확장
-
-- 서버 리소스 증설
-- Node.js 클러스터 모드 활용
-
-## 🚧 향후 개발 계획
-
-### 우선순위 높음
-
-- JWT 기반 인증 구현
-- Redis 세션 저장소 통합
-- 연결 통계 API
-
-### 중간 우선순위
-
-- 대시보드 UI
-- 메트릭 수집 (Prometheus)
-- 자동 확장 지원
-
-### 장기 계획
-
-- 멀티 리전 지원
-- WebRTC TURN 서버 통합
-- 녹화 기능 지원
-
-## 📄 라이선스
-
-이 프로젝트는 BSD 3-Clause 라이선스를 따릅니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참고하세요.
-
-## 👥 제작자
-
-- **kugorang** - [GitHub](https://github.com/kugorang)
-
----
-
-문제가 있거나 제안사항이 있으시면 [Issues](https://github.com/UnityVerseBridge/signaling-server/issues)에 등록해주세요.
+- Token-based authentication
+- Rate limiting per IP
+- Message size limits
+- Input sanitization
+- Room capacity limits

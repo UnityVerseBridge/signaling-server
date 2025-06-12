@@ -8,24 +8,8 @@ const {
     ConnectionRateLimiter 
 } = require('./middleware/security');
 
-// Load environment variables from .env file if it exists
-try {
-    const fs = require('fs');
-    const path = require('path');
-    const envPath = path.join(__dirname, '.env');
-    if (fs.existsSync(envPath)) {
-        const envContent = fs.readFileSync(envPath, 'utf8');
-        envContent.split('\n').forEach(line => {
-            const [key, value] = line.split('=');
-            if (key && value) {
-                process.env[key.trim()] = value.trim();
-            }
-        });
-        console.log('Loaded .env file');
-    }
-} catch (error) {
-    // Ignore if .env doesn't exist
-}
+// Load environment variables
+require('dotenv').config();
 
 const PORT = process.env.PORT || 8080;
 const HOST = process.env.HOST || '0.0.0.0';
